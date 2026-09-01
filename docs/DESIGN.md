@@ -61,9 +61,9 @@ ambient movement while preserving position, labels, and state changes.
 The compatibility renderer uses a curated 24-tile subset of Kenney Tiny Town 1.1 under CC0. The
 tiles provide one coherent pixel environmental vocabulary; A-Brain supplies the city composition,
 semantic recoloring, Vault, memory shards, NPC state language, event choreography, and controls.
-The Pixi renderer continues to use original procedural geometry. Exact files, source, license, and
-modifications are recorded in `THIRD_PARTY_NOTICES.md`, with the upstream license preserved beside
-the assets.
+The Pixi renderer continues to use original procedural geometry. The upstream CC0 license is
+preserved beside the selected files at
+`frontend/public/assets/kenney-tiny-town/LICENSE.txt`.
 
 ### NPC identity language
 

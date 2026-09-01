@@ -1,203 +1,202 @@
 # A-Brain
 
-A-Brain is an agent-continuity product: a fresh agent runtime should be able to recover
-relevant owner context from a persistent, identity-bound brain and make a better next decision.
-Its small 2D world is a visual projection of authoritative backend events, making memory,
-session death, recall, and changed behavior visible without replacing the real product flow.
+> **Agents forget when sessions end. Their brain shouldn't.**
 
-## Current status
+A-Brain is a playable continuity layer for AI agents. It stores durable owner context in
+[Sibyl Memory](https://github.com/Sibyl-Labs/Sibyl-Memory), destroys the current runtime, starts a
+genuinely fresh session, and retrieves only the memories relevant to the next request. Its 2D city
+turns those real backend events into visible memory shards, agent movement, session portals, and a
+side-by-side deletion test.
 
-This local release boots a Next.js frontend, a FastAPI
-runtime, and a versioned domain-event contract shared across the two boundaries. The backend now
-uses the verified public `sibyl-memory-client` 0.7.x API against a local SQLite provider. The
-adapter writes generic owner-context records and persistent NPC brain identities, verifies both
-writes, reopens them after the process boundary, searches owner context, and supports
-update/archive/delete with provider-side tenant isolation.
+[Watch the 3:13 demo](https://vimeo.com/1222920883) ·
+[Read the architecture](./docs/ARCHITECTURE.md) ·
+[Run the demo flow](./docs/DEMO.md)
 
-The current proof boundary is local: no hosted Sibyl service, public deployment, or hackathon
-submission claim is made by this checkout. The local product slice includes generic memory
-promotion and CRUD, durable NPC identity reopen, ephemeral session restart, fresh-session
-continuity, explicit agent-side responses, causal replay, and a PixiJS projection driven by
-confirmed backend events.
+![A-Brain landing page](./docs/images/landing.png)
 
-Conversation turns can optionally run through a Gemini structured-output extractor. Set
-`ABRAIN_MODEL_PROVIDER=gemini` and provide `ABRAIN_GEMINI_API_KEY` to enable it. The extractor
-returns only a bounded candidate schema; server-side provenance is attached before promotion,
-and the existing consent policy still decides whether a candidate is promoted, confirmed, or
-rejected. If the provider is disabled, turns remain transient and no extraction success is
-claimed.
+## Why it exists
 
-Agent responses run through a provider-neutral `AgentRunner`. The credential-free local runner is
-the default; set `ABRAIN_AGENT_PROVIDER=gemini` with the Gemini credential to use the real
-structured-output Gemini runner. Both runners receive the current request, NPC role/personality,
-current task state, and only the relevant Sibyl retrievals. They return a structured
-response, plan, proposed action, used memory IDs, memory effect, missing-context flag, and optional
-task update. Provider output is rejected if it references a memory ID that Sibyl did not return.
-The local runner is intentionally bounded: it can produce a useful plan or memory-scoped decision,
-but it does not claim external research, tool calls, or side effects. Use the Gemini runner for
-model-backed task execution and verify its credentials/provider boundary separately.
+An agent session is temporary. The useful context behind it—preferences, constraints, decisions,
+goals, project state—should not disappear with the process.
 
-Tasks are user-created rather than seeded missions. `POST /api/tasks` creates a generic mission and
-`POST /api/tasks/{task_id}/run` runs it through the same agent pipeline. The lifecycle is
-`queued → thinking → working → blocked/review → completed`; blocked/review tasks can be resumed
-after context or review; current task state is written and
-verified in Sibyl HOT state under `task:{task_id}`. A completed memory-influenced task may promote
-its result as a WARM `decision` with a COLD provenance event. The task response carries the exact
-retrieval metadata and memory IDs that influenced the result.
-
-The owner can optionally add at most two specialist NPCs (planner, worker, or reviewer) through
-`POST /api/npcs/workers`. A primary task can create a scoped child task with
-`POST /api/tasks/{task_id}/handoffs`, selecting the exact WARM memory IDs to share. A-Brain verifies
-that each selected record belongs to the source agent and owner, snapshots only those records into
-the handoff grant, and runs the child with `source=abrain_scoped_handoff` instead of searching the
-target agent's entire brain. This permission layer is A-Brain logic over Sibyl; Sibyl is not being
-presented as an ACL or agent-handoff product. Handoff state is verified in Sibyl HOT state under
-`handoff:{handoff_id}`, while `handoff.created/accepted/started/completed/blocked` are the runtime
-audit events. The same boundary supports a bounded A → B → C review chain without becoming a
-civilization simulator.
-
-The product starts with no owner, NPC, conversation, memory, or story fixture. Users choose a
-small NPC appearance—palette, body silhouette, and optional accessory—during onboarding. The
-world renders identity and role from the persisted NPC record; the Purple Memory is private
-fixture material and is not part of production code.
-
-## Prior Work
-
-The A-Brain concept and initial repository scaffold predate the Sibyl hackathon build window. The
-repository history preserves that starting point. The current product implementation is a
-general-purpose owner-context and session-continuity system; it does not rely on the private Purple
-Memory fixture or any seeded personal data.
-
-## Repository layout
+A-Brain separates a persistent **brain identity** from ephemeral **session identities**:
 
 ```text
-abrain/
-├── backend/       FastAPI runtime and typed domain modules
-├── contracts/     JSON Schema and public event example
-├── docs/          Architecture and truthful local demo runbook
-└── frontend/      Next.js/TypeScript shell with a PixiJS world viewport
+brain: nova
+├── session: nova-001  TERMINATED
+└── session: nova-002  FRESH
 ```
 
-The backend owns domain state and emits events. The frontend consumes the same typed event shape:
-SSE carries system readiness/heartbeat signals, while owner/NPC-scoped recent-event polling carries
-application lifecycle events to the world projection. The canvas never becomes the source of
-memory truth.
+The new session receives no previous chat history. It can continue only by retrieving relevant
+records through Sibyl. Disable Sibyl and the same request safely asks for missing context instead
+of inventing a memory.
 
-See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for exact memory/event locations and
-[docs/DEMO.md](./docs/DEMO.md) for the reproducible local continuity runbook.
+## The proof in one minute
 
-## Judge this in 2 minutes
+1. Create an agent with an empty brain.
+2. Say: `Remember this: Project Nox requires staging security approval before shipping.`
+3. Gemini extracts a typed candidate; policy decides whether it can be promoted.
+4. Sibyl confirms the write before the city materializes a memory shard.
+5. Restart the agent. The old session ends and transient turns are cleared.
+6. Ask the fresh session: `Can we ship Project Nox now?`
+7. Sibyl FTS returns the relevant record and the agent blocks the unsafe release.
+8. Run **Compare continuity**. The identical memory-off lane recalls zero records and asks for
+   context.
 
-1. [`SibylMemoryAdapter.write`](./backend/src/abrain_api/memory/adapter.py#L109) persists durable
-   WARM owner context and verifies the provider read; the adapter also writes HOT task/handoff
-   state and COLD provenance.
-2. [`SibylMemoryAdapter.recall_with_metadata`](./backend/src/abrain_api/memory/adapter.py#L254)
-   calls Sibyl search/FTS, then enforces owner/NPC scope while preserving provider rank, snippet,
-   tier, and source.
-3. [`SessionRuntime.restart`](./backend/src/abrain_api/modules/session_runtime.py#L58) terminates
-   the old ephemeral session and creates an empty one with a different ID.
-4. [`AgentRunner`](./backend/src/abrain_api/modules/agent_runner.py#L87) receives only recalled
-   records and rejects provider output that claims an unsupplied memory ID.
-5. The continuity endpoint in [`main.py`](./backend/src/abrain_api/main.py#L1636) emits recall and
-   `behavior.changed_by_memory` evidence consumed by the city.
-6. The scoped handoff endpoint in [`main.py`](./backend/src/abrain_api/main.py#L457) selects exact
-   memory IDs; A-Brain provides the permission boundary rather than claiming Sibyl is an ACL.
-7. [`test_process_boundary_continuity.py`](./backend/tests/test_process_boundary_continuity.py)
-   starts two separate Python processes against one Sibyl store and proves the new process has
-   zero transient turns, recalls the exact memory ID, and changes its proposed action.
-8. [`test_sibyl_adapter.py`](./backend/tests/test_sibyl_adapter.py) proves reopen and owner
-   isolation; the continuity comparison tests prove safe degradation with memory disabled.
+![A confirmed memory entering the Brain Vault](./docs/images/brain-vault.png)
 
-## Requirements
+## Memory is load-bearing
 
-- Node.js 22+
-- Corepack with pnpm 11+
+Remove Sibyl Memory and A-Brain loses its core function: cross-session continuity.
+
+| With Sibyl | Memory disabled |
+| --- | --- |
+| Fresh session retrieves scoped memory IDs | Fresh session receives zero records |
+| Prior constraints influence the next action | Agent cannot reproduce the tailored action |
+| Provenance links source, write, recall, and decision | Agent safely requests missing context |
+
+![The real Sibyl-on and memory-off comparison](./docs/images/continuity-arena.png)
+
+This is not vector or semantic search. Normal recall uses Sibyl's verified SQLite FTS/search path,
+then applies deterministic owner and NPC scope checks while preserving provider rank, snippet,
+tier, source, query, and relevance metadata.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    O["Owner conversation or task"] --> API["FastAPI runtime"]
+    API --> X["Structured candidate extraction"]
+    X --> P["Consent and promotion policy"]
+    P --> M["SibylMemoryAdapter"]
+    M --> S["Sibyl Memory"]
+    API --> K["Session and task runtime"]
+    K --> M
+    S --> R["Scoped FTS recall"]
+    R --> A["Provider-neutral AgentRunner"]
+    A --> D["Structured decision and action"]
+    API --> E["Typed domain events"]
+    M --> E
+    D --> E
+    E --> W["Next.js and PixiJS city"]
+```
+
+The backend is authoritative. The browser never writes directly to Sibyl, and the world never
+animates a successful memory operation until the provider has confirmed it.
+
+### Sibyl tier mapping
+
+| A-Brain data | Sibyl layer | Purpose |
+| --- | --- | --- |
+| Active task and handoff state | HOT state | Current resumable work |
+| Preferences, constraints, people, goals, decisions | WARM entities | Durable owner context |
+| Writes, recalls, restarts, task and provenance events | COLD journal | Chronological evidence |
+| Named durable documents | REFERENCE | Reusable material when applicable |
+| Superseded records | ARCHIVE | Explicit lifecycle management |
+
+### Critical implementation paths
+
+- Sibyl boundary and verified CRUD: [`adapter.py`](./backend/src/abrain_api/memory/adapter.py)
+- Write durable context:
+  [`SibylMemoryAdapter.write`](./backend/src/abrain_api/memory/adapter.py#L109)
+- Search and scoped recall:
+  [`recall_with_metadata`](./backend/src/abrain_api/memory/adapter.py#L254)
+- HOT task state:
+  [`write_task_state`](./backend/src/abrain_api/memory/adapter.py#L145)
+- Archive and delete lifecycle:
+  [`archive`](./backend/src/abrain_api/memory/adapter.py#L346) and
+  [`delete`](./backend/src/abrain_api/memory/adapter.py#L357)
+- Session restart: [`session_runtime.py`](./backend/src/abrain_api/modules/session_runtime.py)
+- Provider-neutral agent execution:
+  [`agent_runner.py`](./backend/src/abrain_api/modules/agent_runner.py)
+- Typed memory model: [`memory.py`](./backend/src/abrain_api/modules/memory.py)
+- Event-driven city: [`pixi-world.tsx`](./frontend/src/components/pixi-world.tsx)
+- Process-boundary proof:
+  [`test_process_boundary_continuity.py`](./backend/tests/test_process_boundary_continuity.py)
+- Scoped handoff isolation: [`test_handoffs_api.py`](./backend/tests/test_handoffs_api.py)
+
+## Product capabilities
+
+- Empty-brain onboarding with persistent owner and agent identities.
+- Arbitrary conversation with structured memory-candidate extraction.
+- Explicit memory consent, confirmation, Undo, edit, archive, and forget.
+- Generic owner-context types: person, preference, relationship, habit, decision, constraint,
+  value, goal, project, and event.
+- Arbitrary tasks with queued → thinking → working → blocked/review → completed state.
+- Fresh-session restart with distinct session IDs and zero inherited transient turns.
+- Memory-influenced decisions with exact used-memory IDs.
+- Causal replay: source → Sibyl write → fresh recall → changed decision.
+- Real memory-on versus memory-off continuity comparison.
+- Optional scoped delegation to at most two specialist agents; unrelated memories are withheld.
+- Responsive light/dark UI, reduced motion, and an HTML/CSS city fallback when WebGL is unavailable.
+
+## Run locally
+
+### Requirements
+
+- Node.js 20+
+- Corepack and pnpm 11
 - Python 3.11+
 
-## Local start
-
-Install frontend dependencies:
+### Install
 
 ```bash
-corepack pnpm install
-```
+git clone https://github.com/Anand-0038/abrain.git
+cd abrain
 
-Create local configuration:
+corepack pnpm install --frozen-lockfile
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -e 'backend[dev]'
 
-```bash
 cp .env.example .env
 cp frontend/.env.example frontend/.env.local
 ```
 
-The two environment files have different trust boundaries:
+Sibyl's local SQLite provider requires no API key. The default `.env.example` uses real local Sibyl
+memory with credential-free extraction disabled and the deterministic local agent runner enabled.
 
-- `.env` configures the FastAPI runtime, local Sibyl database, and optional model providers. API
-  keys belong only here.
-- `frontend/.env.local` configures browser-visible values. Every `NEXT_PUBLIC_*` value is embedded
-  in the frontend bundle, so never place a credential in this file.
+### Start
 
-The credential-free local path uses `ABRAIN_MODEL_PROVIDER=disabled` and
-`ABRAIN_AGENT_PROVIDER=local`. To enable the real Gemini extraction and agent paths, set both
-providers to `gemini` in `.env` and add `ABRAIN_GEMINI_API_KEY`. Sibyl's local memory path does
-not require an API key.
-
-In terminal 1, install the backend and start it:
+Terminal 1:
 
 ```bash
-python3 -m venv .venv
-. .venv/bin/activate
-python -m pip install -e 'backend[dev]'
+source .venv/bin/activate
 corepack pnpm backend:dev
 ```
 
-In terminal 2, start the frontend:
+Terminal 2:
 
 ```bash
 corepack pnpm dev:frontend
 ```
 
-Open <http://localhost:3000> for development. For the production frontend, use the documented
-production command below and open <http://127.0.0.1:3125>. The shell should report the backend health state and receive the
-generic `system.ready` event. With `ABRAIN_MEMORY_ENABLED=true`, the runtime uses the local Sibyl
-database at `ABRAIN_SIBYL_DB_PATH`. The backend health endpoint is:
+Open [http://127.0.0.1:3000](http://127.0.0.1:3000).
 
-```bash
-curl -fsS http://127.0.0.1:8000/api/health
+### Optional Gemini providers
+
+To enable structured extraction and model-backed agent decisions, update the ignored `.env`:
+
+```dotenv
+ABRAIN_MODEL_PROVIDER=gemini
+ABRAIN_AGENT_PROVIDER=gemini
+ABRAIN_GEMINI_API_KEY=your_key
+ABRAIN_GEMINI_MODEL=gemini-3.5-flash-lite
 ```
 
-For a production frontend, `NEXT_PUBLIC_API_BASE_URL` is embedded during `next build`, so set it
-for the build as well as the server command:
+The provider returns strict structured output. A-Brain rejects used-memory IDs that Sibyl did not
+actually return. Transient network, HTTP 429, and 5xx failures receive bounded retries; permanent
+errors and malformed output fail closed.
+
+## Verify
+
+With frontend and backend running:
 
 ```bash
-NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000 corepack pnpm build
-NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000 corepack pnpm start:frontend
+PATH="$PWD/.venv/bin:$PATH" corepack pnpm verify:local
 ```
 
-The root `start:frontend` script pins the production server to `127.0.0.1:3125`, matching
-`docs/DEMO.md` and the default local acceptance command.
-
-`ABRAIN_CORS_ORIGINS` accepts a comma-separated list of browser origins. The API permits only
-the mutation methods it exposes (`GET`, `POST`, `PATCH`, and `DELETE`).
-
-When extraction is enabled, a successful conversation response includes `candidates` and
-`extraction_status`. A configured provider failure returns the turn with
-`extraction_status: "failed"` and emits `memory.extraction_failed`; it never writes a guessed
-memory.
-
-## Verification
-
-With the backend and frontend running, the complete local acceptance gate can be run with:
-
-```bash
-corepack pnpm verify:local
-```
-
-It checks the local backend health response, frontend HTTP response, tracked-file public
-boundary, formatting, lint, typecheck, tests, production build, and whitespace errors. This
-command proves only the local `sibyl_local` boundary; it does not claim hosted deployment,
-public release, or hackathon submission.
-
-The individual checks remain available:
+Or run individual gates:
 
 ```bash
 corepack pnpm format:check
@@ -205,108 +204,54 @@ corepack pnpm lint
 corepack pnpm typecheck
 corepack pnpm test
 corepack pnpm build
+git diff --check
 ```
 
-The backend checks can also be run directly after the editable install:
+The current release passes 12 frontend tests and 53 backend tests, including owner isolation,
+provider reopen, fresh-process recall, disabled-memory degradation, candidate policy, memory CRUD,
+task lifecycle, causal replay, and scoped handoff isolation.
 
-```bash
-python -m pytest backend/tests
-```
-
-## Memory boundary
-
-`backend/src/abrain_api/memory/adapter.py` is the only application boundary that imports
-`sibyl_memory_client`. It maps A-Brain records intentionally:
-
-- current brain state → Sibyl HOT state documents;
-- current task state → Sibyl HOT state documents keyed by task ID;
-- scoped delegation grants → Sibyl HOT state documents keyed by handoff ID;
-- durable owner context → Sibyl WARM entities;
-- provenance and lifecycle changes → Sibyl COLD journal events;
-- archive/delete → provider entity operations.
-
-Normal non-empty recall calls Sibyl's verified `MemoryClient.search(...)` primitive over the WARM
-`entity` tier and preserves its provider rank/snippet in the response metadata. A-Brain then applies
-the deterministic owner/NPC boundary and returns the matching memory IDs, tier, source, query, and
-relevance reason to the decision/UI layer. This is Sibyl provider search/FTS, not semantic or vector
-search. Empty-query inspection uses a provider entity listing because there is no meaningful search
-term. HOT state and COLD journal entries remain deliberate current-state/provenance writes; they are
-not silently promoted into structured owner-context records during recall.
-
-Owner identity is hashed into a stable Sibyl tenant identifier. The record body retains the
-original owner, NPC, source session, timestamp, confidence, and evidence reference so recalled
-memory remains explainable. Brain identities are stored separately under the `abrain.npc`
-provider category, while owner context uses `abrain.memory`; they are never mixed in the user
-memory list. `backend/tests/test_sibyl_adapter.py` and `backend/tests/test_npc_reopen_api.py`
-destroy and reopen the adapter/application boundary, then prove identity persistence and
-cross-owner isolation using the real SQLite provider. The process-boundary test goes further by
-executing seed and recall in separate OS processes against the same database and asserting zero
-transient turns before Sibyl retrieval changes the fresh process's action.
-
-## Event contract
-
-`contracts/domain-events.schema.json` is the wire-level contract. The backend validates events
-with Pydantic in `backend/src/abrain_api/contracts.py`; the frontend validates received events in
-`frontend/src/lib/events.ts`. The scoped recent-event feed includes backend lifecycle,
-conversation, memory, session, continuity, and causal replay events. The SSE endpoint is limited
-to system readiness/heartbeat signals. The Pixi world renders confirmed event data; it does not
-manufacture provider success or memory objects.
-
-The world is intentionally asset-light: Pixi primitives form a compact six-space
-agent city (Home/Spawn, Memory Vault, Mission Plaza, Workshop, Review Tower, and Session Gate).
-Roads, block footprints, trees, lamps, signs, original building silhouettes, and a small curated
-CC0 Kenney Tiny Town tile set establish a coherent place. Confirmed memory objects travel as
-shards, the agent moves
-between city spaces after real lifecycle events, the gate visualizes session death and fresh-body
-arrival, and the plaza/workshop/tower expose task and memory-influenced work. This is game-feel
-polish around the real event stream, not a pre-recorded animation or a story-specific game scene.
-
-## Product boundary
-
-The verified local continuity path is:
+## Repository layout
 
 ```text
-conversation → promoted generic memory → session termination
-→ genuinely fresh session → Sibyl recall → changed useful behavior
-→ explicit safe degradation with memory disabled
+abrain/
+├── backend/       FastAPI runtime, Sibyl adapter, agent and task logic
+├── contracts/     shared domain-event schema
+├── frontend/      Next.js interface and PixiJS world
+├── docs/          architecture, demo runbook, design, and screenshots
+└── scripts/       local acceptance verification
 ```
 
-After a restart, the first normal conversation turn follows that same recall path automatically;
-the Continuity panel is an inspectable diagnostic for the identical decision boundary, not a
-separate scripted mode. A fresh turn emits recall and behavior-provenance events before the
-response is returned. If no relevant record exists, or memory is disabled, the agent asks for
-context rather than inventing prior knowledge.
-The owner-scoped `GET /api/sessions?owner_id=...&npc_id=...` endpoint exposes the current
-in-process session lineage, and the world renders the terminated predecessor and fresh session
-as a compact proof receipt. This is runtime inspection only: session lineage is not persisted as
-hosted history across backend restarts.
-The optional `POST /api/continuity/compare` diagnostic requires a clean fresh session and runs
-the same query through a real Sibyl-enabled lane and a separate memory-disabled lane. The latter
-uses the same continuity decision policy with no provider records, asks for missing context, and
-is terminated after inspection; it is not a prerecorded or cached judge path.
+## Current boundary
 
-The same agent pipeline is used when memory is disabled. It receives an empty retrieval set and
-must request missing owner context rather than silently falling back to old conversation or
-inventing a remembered preference. `behavior.changed_by_memory` is emitted only when the runner's
-validated `used_memory_ids` is non-empty.
+Verified in this release:
 
-The browser journey has been run against both the Next production build and the FastAPI runtime:
-onboarding → conversation turn → real Sibyl write → restart → fresh recall → causal replay.
-Disabling Sibyl returns `continuity_unavailable` with `request_missing_context` and no recalled
-memory IDs. The general-purpose Gemini extractor is implemented but optional and
-credential-gated. A hosted Sibyl service, user authentication, and cross-machine session
-recovery remain future work; this release does not claim them. Session restart and continuity
-requests are still owner-scoped: the runtime verifies that the supplied owner owns the NPC before
-terminating a session or recalling its brain. Session/transcript reads, conversation writes, and
-candidate promotion use the same owner/NPC/source-session checks. Recent event history is filtered
-on the server; an unscoped browser receives only system events, while the active owner/NPC receives
-its own event history for the world projection.
+- real local Sibyl SDK and SQLite persistence;
+- real Gemini extraction and agent execution when configured;
+- browser UI write, restart, fresh recall, causal replay, and deletion comparison;
+- process-boundary reopen and owner isolation;
+- public source repository and recorded demo.
+
+Not claimed:
+
+- hosted Sibyl service or hosted A-Brain application;
+- production authentication or cross-device owner sync;
+- Base or Virtuals partner integration;
+- semantic/vector retrieval;
+- external research or autonomous real-world side effects.
+
+## Prior work
+
+The A-Brain concept and initial repository scaffold existed before the hackathon build window. The
+Sibyl-backed memory lifecycle, fresh-session continuity runtime, task and scoped-handoff systems,
+event-driven city, deletion comparison, causal replay, tests, and submitted demo were implemented
+during the Sep 1–10, 2026 build window.
+
+The compatibility city uses a curated subset of Kenney Tiny Town 1.1 under CC0. Its upstream
+license is preserved beside the files at
+[`frontend/public/assets/kenney-tiny-town/LICENSE.txt`](./frontend/public/assets/kenney-tiny-town/LICENSE.txt).
+All dependencies remain documented by the checked-in manifests and lockfile.
 
 ## License
 
-MIT. See [LICENSE](./LICENSE).
-
-Direct dependency and visual-asset attribution is recorded in
-[THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md). The compatibility city uses a small CC0 Kenney
-Tiny Town tile subset; A-Brain's continuity mechanics, event choreography, and Pixi effects remain
-project implementation.
+[MIT](./LICENSE) © 2026 Anand Vashishtha

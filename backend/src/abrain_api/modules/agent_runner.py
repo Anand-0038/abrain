@@ -8,6 +8,7 @@ from typing import Literal, Protocol
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
+from .gemini_transport import post_json_with_retry
 from .memory import MemoryRetrieval
 from .npc_identity import NpcIdentity
 
@@ -249,12 +250,12 @@ class GeminiAgentRunner:
         )
         try:
             async with httpx.AsyncClient(timeout=self._timeout) as client:
-                response = await client.post(
+                response = await post_json_with_retry(
+                    client,
                     url,
                     headers={"x-goog-api-key": self._api_key.get_secret_value()},
-                    json=body,
+                    payload=body,
                 )
-                response.raise_for_status()
                 result = parse_agent_response(response.json())
         except (httpx.HTTPError, ValueError, AgentRunnerError) as exc:
             if isinstance(exc, AgentRunnerError):

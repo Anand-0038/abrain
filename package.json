@@ -1,0 +1,23 @@
+{
+  "name": "abrain",
+  "private": true,
+  "version": "0.1.0",
+  "description": "A-Brain persistent agent-continuity world",
+  "packageManager": "pnpm@11.21.0",
+  "scripts": {
+    "dev:frontend": "corepack pnpm --dir frontend dev",
+    "start:frontend": "corepack pnpm --dir frontend start --hostname 127.0.0.1 --port 3125",
+    "build": "corepack pnpm --dir frontend build",
+    "verify:local": "bash scripts/verify-local.sh",
+    "lint": "corepack pnpm --dir frontend lint && corepack pnpm run backend:lint",
+    "format:check": "corepack pnpm --dir frontend format:check && corepack pnpm run backend:format:check",
+    "typecheck": "corepack pnpm --dir frontend typecheck && corepack pnpm run backend:typecheck",
+    "test": "corepack pnpm --dir frontend test && corepack pnpm run backend:test",
+    "backend:install": "python3 -m pip install -e 'backend[dev]'",
+    "backend:dev": "python3 -m uvicorn abrain_api.main:app --app-dir backend/src --reload --host 127.0.0.1 --port 8000",
+    "backend:lint": "python3 -m ruff check backend/src backend/tests",
+    "backend:format:check": "python3 -m ruff format --check backend/src backend/tests",
+    "backend:typecheck": "python3 -m mypy backend/src",
+    "backend:test": "python3 -m pytest backend/tests"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "event_id": "evt_scaffold_ready",
+  "event_type": "system.ready",
+  "occurred_at": "2026-08-20T00:00:00Z",
+  "source": "abrain-runtime",
+  "correlation_id": "corr_scaffold",
+  "agent_id": null,
+  "session_id": null,
+  "proof_ref": null,
+  "payload": {
+    "boundary": "scaffold",
+    "memory": "not_configured"
+  }
+}

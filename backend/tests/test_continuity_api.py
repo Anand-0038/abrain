@@ -257,7 +257,9 @@ def test_failed_fresh_recall_does_not_record_a_transient_turn(tmp_path, monkeypa
 
 
 def test_fresh_session_without_memory_fails_safe() -> None:
-    with TestClient(create_app(Settings(ABRAIN_ENV="test"))) as client:
+    with TestClient(
+        create_app(Settings(ABRAIN_ENV="test", ABRAIN_MEMORY_ENABLED="false", _env_file=None))
+    ) as client:
         npc = client.post("/api/npcs", json={"owner_id": "owner-a", "name": "Nova"}).json()["npc"]
         session = client.post(
             "/api/sessions", json={"owner_id": "owner-a", "npc_id": npc["npc_id"]}

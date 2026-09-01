@@ -1,44 +1,36 @@
 # Third-party notices
 
-A-Brain is released under the MIT License in `LICENSE`. The following direct dependencies are
-used by the local application. Frontend versions are pinned in the package manifest/lockfile;
-backend versions below are the verified local environment versions within the ranges declared in
-`backend/pyproject.toml`.
+A-Brain is released under the MIT License in `LICENSE`. Package versions and transitive licenses
+remain recorded by the checked-in manifests and lockfiles.
 
-## Runtime dependencies
+## Runtime foundations
 
-| Package             | Version | License      | Source                                        |
-| ------------------- | ------- | ------------ | --------------------------------------------- |
-| Next.js             | 15.4.6  | MIT          | https://github.com/vercel/next.js             |
-| React               | 19.1.1  | MIT          | https://github.com/facebook/react             |
-| React DOM           | 19.1.1  | MIT          | https://github.com/facebook/react             |
-| PixiJS              | 8.9.2   | MIT          | https://github.com/pixijs/pixijs              |
-| FastAPI             | 0.141.1 | MIT          | https://github.com/fastapi/fastapi            |
-| Uvicorn             | 0.52.4  | BSD-3-Clause | https://github.com/Kludex/uvicorn             |
-| Pydantic            | 2.13.4  | MIT          | https://github.com/pydantic/pydantic          |
-| Pydantic Settings   | 2.15.0  | MIT          | https://github.com/pydantic/pydantic-settings |
-| HTTPX               | 0.28.1  | BSD-3-Clause | https://github.com/encode/httpx               |
-| Sibyl Memory client | 0.7.0   | MIT          | https://github.com/Sibyl-Labs/Sibyl-Memory    |
+- Next.js, React, and React DOM — MIT.
+- PixiJS — MIT.
+- FastAPI, Pydantic, and Pydantic Settings — MIT.
+- Uvicorn and HTTPX — BSD-3-Clause.
+- Sibyl Memory client — MIT.
 
-## Development dependencies
+## Visual assets
 
-| Package    | Version | License    | Source                                  |
-| ---------- | ------- | ---------- | --------------------------------------- |
-| TypeScript | 5.8.3   | Apache-2.0 | https://github.com/microsoft/TypeScript |
-| ESLint     | 9.29.0  | MIT        | https://github.com/eslint/eslint        |
-| Prettier   | 3.6.2   | MIT        | https://github.com/prettier/prettier    |
-| Vitest     | 3.2.4   | MIT        | https://github.com/vitest-dev/vitest    |
-| pytest     | 8.4.2   | MIT        | https://github.com/pytest-dev/pytest    |
-| mypy       | 1.20.2  | MIT        | https://github.com/python/mypy          |
-| Ruff       | 0.16.4  | MIT        | https://github.com/astral-sh/ruff       |
+### Kenney Tiny Town 1.1
 
-## Original world art and asset manifest
+- Creator: Kenney (`https://kenney.nl`)
+- Source: `https://kenney.nl/assets/tiny-town`
+- License: Creative Commons Zero 1.0 (CC0)
+- Files used: a curated subset of 24 original 16-by-16 PNG tiles under
+  `frontend/public/assets/kenney-tiny-town/`
+- Modifications: presentation-only scaling, filtering, layering, and animation in A-Brain's CSS;
+  the source PNG files are unmodified
+- Retrieved: 2026-09-01
 
-The application does not bundle third-party image, audio, sprite, tileset, or copied game assets.
-The A-Brain World tiny-city map uses original procedural PixiJS primitives authored in
-`frontend/src/components/pixi-world.tsx`: roads, blocks, reusable buildings, trees, lamps,
-sign-like labels, agents, memory shards, and event effects. No Kenney or other external art pack is
-claimed or required. PixiJS remains the MIT-licensed rendering dependency listed above.
+The upstream license text is preserved beside the assets as
+`frontend/public/assets/kenney-tiny-town/LICENSE.txt`. Attribution is not required by CC0, but is
+included here for clarity and gratitude.
 
-Transitive dependencies remain governed by their package licenses in the generated lockfiles and
-installed distribution metadata.
+## Original A-Brain work
+
+The continuity city composition, Brain Vault, memory shards, NPC state choreography, event-driven
+movement, session portal, causal replay, and fallback renderer are A-Brain implementation work.
+The Kenney tiles provide a coherent environmental vocabulary; they do not implement application
+state or memory behavior.

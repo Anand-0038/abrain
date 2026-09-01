@@ -58,11 +58,12 @@ ambient movement while preserving position, labels, and state changes.
 
 ## Asset and licensing boundary
 
-No external art family is bundled for this pass. Roads, blocks, buildings, trees, lamps, signs,
-agent, shards, and effects are original PixiJS primitive geometry in
-`frontend/src/components/pixi-world.tsx`. PixiJS itself is recorded as an MIT dependency in
-`THIRD_PARTY_NOTICES.md`. Dribbble and other visual references remain inspiration only; no layout,
-illustration, sprite, audio, or copied code was imported.
+The compatibility renderer uses a curated 24-tile subset of Kenney Tiny Town 1.1 under CC0. The
+tiles provide one coherent pixel environmental vocabulary; A-Brain supplies the city composition,
+semantic recoloring, Vault, memory shards, NPC state language, event choreography, and controls.
+The Pixi renderer continues to use original procedural geometry. Exact files, source, license, and
+modifications are recorded in `THIRD_PARTY_NOTICES.md`, with the upstream license preserved beside
+the assets.
 
 ### NPC identity language
 

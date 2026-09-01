@@ -12,6 +12,7 @@ def client() -> TestClient:
             Settings(
                 ABRAIN_ENV="test",
                 ABRAIN_CORS_ORIGINS="http://testserver",
+                _env_file=None,
             )
         )
     )

@@ -114,6 +114,37 @@ function fallbackAgentZone(events: DomainEvent[]): ZoneId {
   return "home";
 }
 
+function PixelTile({ id, className = "" }: { id: string; className?: string }) {
+  return (
+    // The curated Kenney tiles are decorative; zone names and actions remain textual.
+    // eslint-disable-next-line @next/next/no-img-element -- 16px pixel tiles must remain unoptimized and crisp.
+    <img
+      aria-hidden="true"
+      className={`pixel-tile ${className}`}
+      src={`/assets/kenney-tiny-town/tile_${id}.png`}
+      alt=""
+    />
+  );
+}
+
+function ZoneArtwork({ zone }: { zone: ZoneId }) {
+  const tiles: Record<ZoneId, string[]> = {
+    home: ["0052", "0072", "0084"],
+    vault: ["0108", "0117", "0095"],
+    plaza: ["0003", "0026", "0076"],
+    workshop: ["0063", "0119", "0131"],
+    review: ["0056", "0074", "0094"],
+    gate: ["0105", "0130", "0095"],
+  };
+  return (
+    <span className={`fallback-zone-art fallback-zone-art-${zone}`} aria-hidden="true">
+      {tiles[zone].map((tile, index) => (
+        <PixelTile id={tile} className={`pixel-layer-${index + 1}`} key={tile} />
+      ))}
+    </span>
+  );
+}
+
 function FallbackCity({
   events,
   memories,
@@ -147,13 +178,24 @@ function FallbackCity({
   return (
     <div className="fallback-city" data-agent-zone={zone}>
       <div className="fallback-city-sky" aria-hidden="true" />
+      <div className="fallback-landscape" aria-hidden="true">
+        {["0004", "0005", "0014", "0015", "0027", "0003"].map((tile, index) => (
+          <PixelTile
+            id={tile}
+            className={`landscape-tile landscape-tile-${index + 1}`}
+            key={tile}
+          />
+        ))}
+      </div>
       <div className="fallback-road fallback-road-horizontal" aria-hidden="true" />
       <div className="fallback-road fallback-road-vertical" aria-hidden="true" />
       <div className="fallback-zone fallback-home">
+        <ZoneArtwork zone="home" />
         <span>HOME</span>
         <strong>Spawn house</strong>
       </div>
       <div className="fallback-zone fallback-vault">
+        <ZoneArtwork zone="vault" />
         <span>MEMORY VAULT</span>
         <strong>Persistent brain</strong>
         <div className="fallback-shards" aria-label={`${memories.length} confirmed memories`}>
@@ -174,18 +216,22 @@ function FallbackCity({
         </div>
       </div>
       <button className="fallback-zone fallback-plaza" onClick={onActivitySelect} type="button">
+        <ZoneArtwork zone="plaza" />
         <span>MISSION PLAZA</span>
         <strong>Assign work</strong>
       </button>
       <button className="fallback-zone fallback-workshop" onClick={onActivitySelect} type="button">
+        <ZoneArtwork zone="workshop" />
         <span>WORKSHOP</span>
         <strong>Agent working</strong>
       </button>
       <button className="fallback-zone fallback-review" onClick={onActivitySelect} type="button">
+        <ZoneArtwork zone="review" />
         <span>REVIEW TOWER</span>
         <strong>Verify result</strong>
       </button>
       <div className="fallback-zone fallback-gate">
+        <ZoneArtwork zone="gate" />
         <span>SESSION GATE</span>
         <strong>Fresh body</strong>
       </div>

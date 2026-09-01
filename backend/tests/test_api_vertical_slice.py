@@ -100,7 +100,9 @@ def test_uncertain_candidate_requires_confirmation_and_memory_disabled_fails_clo
         "value": "visit Japan",
         "confidence": 0.4,
     }
-    with TestClient(create_app(Settings(ABRAIN_ENV="test"))) as client:
+    with TestClient(
+        create_app(Settings(ABRAIN_ENV="test", ABRAIN_MEMORY_ENABLED="false", _env_file=None))
+    ) as client:
         npc = client.post("/api/npcs", json={"owner_id": "owner-a", "name": "Nova"}).json()["npc"]
         session = client.post(
             "/api/sessions", json={"owner_id": "owner-a", "npc_id": npc["npc_id"]}

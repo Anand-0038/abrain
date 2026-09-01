@@ -44,6 +44,25 @@ class MemoryRetrieval(BaseModel):
     provider_rank: float | None = None
     provider_snippet: str | None = None
     relevance_reason: str = Field(min_length=1)
+    search_attempt: int = Field(default=1, ge=1, le=3)
+    retry_query: str | None = None
+
+
+class MemorySearchVerdict(BaseModel):
+    """Safe, provider-originated explanation for a Sibyl search result.
+
+    Lucid exposes verdicts even when search returns no records. A-Brain keeps
+    this diagnostic separate from stored owner content: it may contain only
+    the caller's query tokens and provider gate metadata.
+    """
+
+    code: str
+    tokens: list[str] = Field(default_factory=list, max_length=8)
+    gate: str | None = None
+    returned: int = Field(ge=0)
+    retry_query: str | None = None
+    retryable: bool = False
+    explanation: str = Field(min_length=1)
 
 
 class MemoryProvider(Protocol):

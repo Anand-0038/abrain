@@ -60,6 +60,23 @@ def test_recall_exposes_sibyl_search_metadata(tmp_path) -> None:
     assert matches[0].provider_rank is not None
     assert matches[0].provider_snippet is not None
     assert "Sibyl search returned" in matches[0].relevance_reason
+    assert matches[0].search_attempt == 1
+    assert matches[0].retry_query is None
+    adapter.close()
+
+
+def test_sibyl_search_verdict_explains_empty_recall_without_exposing_other_owner(tmp_path) -> None:
+    adapter = SibylMemoryAdapter(tmp_path / "verdict.db")
+    adapter.write(record("owner-a", "mem-a", "workspace", "dark interface"))
+    adapter.write(record("owner-b", "mem-b", "food", "spicy food"))
+
+    assert adapter.recall("owner-a", "nova", "spicy food") == []
+    verdict = adapter.search_verdict("owner-a", "spicy food")
+
+    assert verdict.code in {"no_match", "abstained_on", "empty_store", "no_scoped_match"}
+    assert verdict.returned == 0
+    assert "owner-context" in verdict.explanation
+    assert "spicy food" not in verdict.explanation
     adapter.close()
 
 

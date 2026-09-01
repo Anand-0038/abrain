@@ -1720,6 +1720,9 @@ def create_app(
 
         try:
             memories = adapter.recall_with_metadata(request.owner_id, request.npc_id, request.query)
+            search_verdict = (
+                adapter.search_verdict(request.owner_id, request.query) if not memories else None
+            )
         except MemoryAdapterError as exc:
             emit(
                 "memory.recall_failed",
@@ -1738,7 +1741,9 @@ def create_app(
             memories,
             correlation_id=correlation_id,
         )
-        decision = assemble_continuity(request, memories, agent_result)
+        decision = assemble_continuity(
+            request, memories, agent_result, search_verdict=search_verdict
+        )
         emit(
             "memory.recall_succeeded",
             correlation_id=correlation_id,
@@ -1803,6 +1808,9 @@ def create_app(
         )
         try:
             memories = adapter.recall_with_metadata(request.owner_id, request.npc_id, request.query)
+            search_verdict = (
+                adapter.search_verdict(request.owner_id, request.query) if not memories else None
+            )
         except MemoryAdapterError as exc:
             emit(
                 "memory.recall_failed",
@@ -1831,6 +1839,7 @@ def create_app(
                 memories,
                 correlation_id=correlation_id,
             ),
+            search_verdict=search_verdict,
         )
         emit(
             "memory.recall_succeeded",

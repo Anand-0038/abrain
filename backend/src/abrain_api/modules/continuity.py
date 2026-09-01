@@ -5,7 +5,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from .agent_runner import AgentRunResult
-from .memory import MemoryRecord, MemoryRetrieval
+from .memory import MemoryRecord, MemoryRetrieval, MemorySearchVerdict
 
 
 class ContinuityRequest(BaseModel):
@@ -22,6 +22,7 @@ class ContinuityDecision(BaseModel):
     recalled_memory_ids: list[str]
     recalled_memories: list[MemoryRecord]
     retrievals: list[MemoryRetrieval]
+    search_verdict: MemorySearchVerdict | None = None
     explanation: str
     agent_response: str
     agent_run: AgentRunResult
@@ -71,6 +72,7 @@ def assemble_continuity(
     request: ContinuityRequest,
     memories: list[MemoryRetrieval] | list[MemoryRecord] | None,
     agent_result: AgentRunResult | None = None,
+    search_verdict: MemorySearchVerdict | None = None,
 ) -> ContinuityDecision:
     """Combine scoped recall and one structured agent run into continuity state."""
 
@@ -106,6 +108,7 @@ def assemble_continuity(
             recalled_memory_ids=[],
             recalled_memories=[],
             retrievals=[],
+            search_verdict=None,
             explanation=(
                 "Persistent memory is disabled. The fresh session must ask for context "
                 "rather than inventing previous preferences or decisions."
@@ -122,7 +125,12 @@ def assemble_continuity(
             recalled_memory_ids=[],
             recalled_memories=[],
             retrievals=[],
-            explanation="Sibyl is available, but no relevant owner context was recalled.",
+            search_verdict=search_verdict,
+            explanation=(
+                search_verdict.explanation
+                if search_verdict is not None
+                else "Sibyl is available, but no relevant owner context was recalled."
+            ),
             agent_response=result.response,
             agent_run=result,
         )
@@ -134,6 +142,7 @@ def assemble_continuity(
         recalled_memory_ids=[memory.memory_id for memory in records],
         recalled_memories=records,
         retrievals=retrievals,
+        search_verdict=search_verdict,
         explanation=(
             "The agent runner received only the Sibyl records relevant to this request. "
             "Used memory IDs identify the records that materially changed its action."

@@ -17,7 +17,7 @@ from typing import Any
 from sibyl_memory_client import MemoryClient, Storage  # type: ignore[import-untyped]
 
 from ..modules.handoff import ScopedHandoff
-from ..modules.memory import MemoryRecord, MemoryRetrieval
+from ..modules.memory import MemoryRecord, MemoryRetrieval, MemorySearchVerdict
 from ..modules.npc_identity import NpcIdentity
 from ..modules.tasks import AgentTask
 
@@ -280,8 +280,19 @@ class SibylMemoryAdapter:
             ]
 
         client = self._client(owner_id)
+        attempt = 1
+        search_query = query
         try:
-            hits = client.search(query, limit=limit * 2, tiers=("entity",))
+            hits = client.search(search_query, limit=limit * 2, tiers=("entity",))
+            # Lucid's verdict is additive metadata. Only the provider may
+            # identify a safe retry token; A-Brain never guesses by stripping
+            # arbitrary owner words. A single retry is deliberately below
+            # Sibyl's documented maximum of two agent-side retries.
+            verdict = self._search_verdict(hits, search_query)
+            if not hits and verdict.retryable and verdict.retry_query:
+                attempt = 2
+                search_query = verdict.retry_query
+                hits = client.search(search_query, limit=limit * 2, tiers=("entity",))
         except Exception as exc:
             raise MemoryAdapterError("Sibyl memory search failed") from exc
 
@@ -311,13 +322,102 @@ class SibylMemoryAdapter:
                     if isinstance(hit.get("snippet"), str)
                     else None,
                     relevance_reason=(
-                        f"Sibyl search returned the {tier} entity {key} for this query."
+                        f"Sibyl search returned the {tier} entity {key} for this query "
+                        f"on attempt {attempt}."
                     ),
+                    search_attempt=attempt,
+                    retry_query=search_query if attempt > 1 else None,
                 )
             )
             if len(matches) >= limit:
                 break
         return matches
+
+    @staticmethod
+    def _search_verdict(hits: object, query: str) -> MemorySearchVerdict:
+        """Translate Lucid's additive verdict without coupling app code to SDK types."""
+
+        raw = getattr(hits, "verdict", None)
+        code_value = getattr(raw, "code", "unknown")
+        code = str(getattr(code_value, "value", code_value))
+        raw_tokens = getattr(raw, "tokens", ()) or ()
+        tokens = [str(token) for token in raw_tokens if str(token).strip()][:8]
+        gate_value = getattr(raw, "gate", None)
+        gate = str(getattr(gate_value, "value", gate_value)) if gate_value else None
+        returned_value = getattr(raw, "returned", None)
+        returned = int(returned_value) if isinstance(returned_value, int) else len(hits)  # type: ignore[arg-type]
+
+        retry_query: str | None = None
+        retryable = code == "abstained_on" and bool(tokens)
+        if retryable:
+            blocked = tokens[0].casefold()
+            remaining = [word for word in query.split() if word.casefold() != blocked]
+            candidate = " ".join(remaining).strip()
+            if candidate and candidate != query:
+                retry_query = candidate
+            else:
+                retryable = False
+
+        if code == "ok":
+            explanation = "Sibyl search found matching owner-context records."
+        elif retryable:
+            explanation = (
+                "Sibyl abstained on the original query and identified one query token that can be "
+                "safely removed for one bounded retry."
+            )
+        elif code == "empty_store":
+            explanation = (
+                "Sibyl reports that this owner brain has no searchable durable entities yet."
+            )
+        else:
+            explanation = (
+                "Sibyl found no matching owner-context record; the agent must ask for context."
+            )
+
+        return MemorySearchVerdict(
+            code=code,
+            tokens=tokens,
+            gate=gate,
+            returned=returned,
+            retry_query=retry_query,
+            retryable=retryable,
+            explanation=explanation,
+        )
+
+    def search_verdict(self, owner_id: str, query: str) -> MemorySearchVerdict:
+        """Expose Sibyl's zero-result explanation without leaking stored content.
+
+        This is useful to the agent and UI when recall returns no records. It
+        does not perform the retry itself, so callers can make user-facing
+        retry decisions explicitly.
+        """
+
+        client = self._client(owner_id)
+        try:
+            hits = client.search(query, limit=1, tiers=("entity",))
+        except Exception as exc:
+            raise MemoryAdapterError("Sibyl memory search failed") from exc
+        verdict = self._search_verdict(hits, query)
+        # A tenant also contains the persistent NPC identity entity. A valid
+        # provider hit for that identity is not a valid owner-context memory
+        # recall, so translate the boundary honestly without exposing it.
+        has_owner_context_hit = any(
+            isinstance(hit, dict) and hit.get("category") == _CATEGORY for hit in hits
+        )
+        if verdict.code == "ok" and not has_owner_context_hit:
+            return verdict.model_copy(
+                update={
+                    "code": "no_scoped_match",
+                    "returned": 0,
+                    "retryable": False,
+                    "retry_query": None,
+                    "explanation": (
+                        "Sibyl found no record in this NPC's durable owner-context scope; "
+                        "the agent must ask for context."
+                    ),
+                }
+            )
+        return verdict
 
     def search(self, owner_id: str, query: str, *, limit: int = 20) -> builtins.list[MemoryRecord]:
         """Use Sibyl's cross-tier search, retaining A-Brain owner validation."""

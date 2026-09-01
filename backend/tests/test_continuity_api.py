@@ -276,6 +276,35 @@ def test_fresh_session_without_memory_fails_safe() -> None:
         assert "owner context" in response.json()["agent_response"]
 
 
+def test_empty_sibyl_recall_returns_a_safe_provider_verdict(tmp_path) -> None:
+    settings = Settings(
+        ABRAIN_ENV="test",
+        ABRAIN_MEMORY_ENABLED="true",
+        ABRAIN_SIBYL_DB_PATH=str(tmp_path / "memory.db"),
+    )
+    with TestClient(create_app(settings)) as client:
+        npc = client.post("/api/npcs", json={"owner_id": "owner-a", "name": "Nova"}).json()["npc"]
+        session = client.post(
+            "/api/sessions", json={"owner_id": "owner-a", "npc_id": npc["npc_id"]}
+        ).json()["session"]
+        response = client.post(
+            f"/api/sessions/{session['session_id']}/continuity",
+            json={"owner_id": "owner-a", "npc_id": npc["npc_id"], "query": "unknown context"},
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status"] == "no_relevant_memory"
+        assert body["search_verdict"]["code"] in {
+            "empty_store",
+            "no_match",
+            "abstained_on",
+            "no_scoped_match",
+        }
+        assert body["search_verdict"]["returned"] == 0
+        assert body["agent_run"]["needs_more_context"] is True
+
+
 def test_behavior_event_requires_runner_used_memory_ids(tmp_path) -> None:
     settings = Settings(
         ABRAIN_ENV="test",

@@ -107,6 +107,18 @@ cp .env.example .env
 cp frontend/.env.example frontend/.env.local
 ```
 
+The two environment files have different trust boundaries:
+
+- `.env` configures the FastAPI runtime, local Sibyl database, and optional model providers. API
+  keys belong only here.
+- `frontend/.env.local` configures browser-visible values. Every `NEXT_PUBLIC_*` value is embedded
+  in the frontend bundle, so never place a credential in this file.
+
+The credential-free local path uses `ABRAIN_MODEL_PROVIDER=disabled` and
+`ABRAIN_AGENT_PROVIDER=local`. To enable the real Gemini extraction and agent paths, set both
+providers to `gemini` in `.env` and add `ABRAIN_GEMINI_API_KEY`. Sibyl's local memory path does
+not require an API key.
+
 In terminal 1, install the backend and start it:
 
 ```bash

@@ -113,6 +113,16 @@ export function WorldShell({
   const recalledMemoryCount = Array.isArray(lastRecall?.payload.memory_ids)
     ? lastRecall.payload.memory_ids.filter((value) => typeof value === "string").length
     : 0;
+  const recalledMemorySuffixes = Array.isArray(lastRecall?.payload.memory_ids)
+    ? lastRecall.payload.memory_ids
+        .filter((value): value is string => typeof value === "string")
+        .slice(0, 3)
+        .map((value) => value.slice(-6))
+    : [];
+  const transientTurns =
+    typeof lastRestarted?.payload.transient_turns === "number"
+      ? lastRestarted.payload.transient_turns
+      : 0;
 
   function selectAgent() {
     setAgentSelected(true);
@@ -182,8 +192,17 @@ export function WorldShell({
           <span className="continuity-proof-divider" aria-hidden="true">
             |
           </span>
+          <span className="continuity-proof-step is-complete">
+            TRANSIENT TURNS → {transientTurns}
+          </span>
+          <span className="continuity-proof-divider" aria-hidden="true">
+            |
+          </span>
           <span className={`continuity-proof-step ${lastRecall ? "is-complete" : "is-pending"}`}>
             SIBYL → {recalledMemoryCount} RECALLED
+            {recalledMemorySuffixes.length > 0 ? (
+              <code> · {recalledMemorySuffixes.join(" · ")}</code>
+            ) : null}
           </span>
         </div>
       ) : null}

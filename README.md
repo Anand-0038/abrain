@@ -86,6 +86,28 @@ memory truth.
 See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for exact memory/event locations and
 [docs/DEMO.md](./docs/DEMO.md) for the reproducible local continuity runbook.
 
+## Judge this in 2 minutes
+
+1. [`SibylMemoryAdapter.write`](./backend/src/abrain_api/memory/adapter.py#L109) persists durable
+   WARM owner context and verifies the provider read; the adapter also writes HOT task/handoff
+   state and COLD provenance.
+2. [`SibylMemoryAdapter.recall_with_metadata`](./backend/src/abrain_api/memory/adapter.py#L254)
+   calls Sibyl search/FTS, then enforces owner/NPC scope while preserving provider rank, snippet,
+   tier, and source.
+3. [`SessionRuntime.restart`](./backend/src/abrain_api/modules/session_runtime.py#L58) terminates
+   the old ephemeral session and creates an empty one with a different ID.
+4. [`AgentRunner`](./backend/src/abrain_api/modules/agent_runner.py#L87) receives only recalled
+   records and rejects provider output that claims an unsupplied memory ID.
+5. The continuity endpoint in [`main.py`](./backend/src/abrain_api/main.py#L1636) emits recall and
+   `behavior.changed_by_memory` evidence consumed by the city.
+6. The scoped handoff endpoint in [`main.py`](./backend/src/abrain_api/main.py#L457) selects exact
+   memory IDs; A-Brain provides the permission boundary rather than claiming Sibyl is an ACL.
+7. [`test_process_boundary_continuity.py`](./backend/tests/test_process_boundary_continuity.py)
+   starts two separate Python processes against one Sibyl store and proves the new process has
+   zero transient turns, recalls the exact memory ID, and changes its proposed action.
+8. [`test_sibyl_adapter.py`](./backend/tests/test_sibyl_adapter.py) proves reopen and owner
+   isolation; the continuity comparison tests prove safe degradation with memory disabled.
+
 ## Requirements
 
 - Node.js 22+
@@ -217,7 +239,9 @@ memory remains explainable. Brain identities are stored separately under the `ab
 provider category, while owner context uses `abrain.memory`; they are never mixed in the user
 memory list. `backend/tests/test_sibyl_adapter.py` and `backend/tests/test_npc_reopen_api.py`
 destroy and reopen the adapter/application boundary, then prove identity persistence and
-cross-owner isolation using the real SQLite provider.
+cross-owner isolation using the real SQLite provider. The process-boundary test goes further by
+executing seed and recall in separate OS processes against the same database and asserting zero
+transient turns before Sibyl retrieval changes the fresh process's action.
 
 ## Event contract
 
@@ -228,10 +252,11 @@ conversation, memory, session, continuity, and causal replay events. The SSE end
 to system readiness/heartbeat signals. The Pixi world renders confirmed event data; it does not
 manufacture provider success or memory objects.
 
-The world is intentionally asset-light and original: Pixi primitives form a compact six-space
+The world is intentionally asset-light: Pixi primitives form a compact six-space
 agent city (Home/Spawn, Memory Vault, Mission Plaza, Workshop, Review Tower, and Session Gate).
-Roads, block footprints, trees, lamps, signs, and reusable building silhouettes establish a tiny
-place without bundling third-party art. Confirmed memory objects travel as shards, the agent moves
+Roads, block footprints, trees, lamps, signs, original building silhouettes, and a small curated
+CC0 Kenney Tiny Town tile set establish a coherent place. Confirmed memory objects travel as
+shards, the agent moves
 between city spaces after real lifecycle events, the gate visualizes session death and fresh-body
 arrival, and the plaza/workshop/tower expose task and memory-influenced work. This is game-feel
 polish around the real event stream, not a pre-recorded animation or a story-specific game scene.

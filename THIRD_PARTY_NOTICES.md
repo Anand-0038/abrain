@@ -18,8 +18,9 @@ remain recorded by the checked-in manifests and lockfiles.
 - Creator: Kenney (`https://kenney.nl`)
 - Source: `https://kenney.nl/assets/tiny-town`
 - License: Creative Commons Zero 1.0 (CC0)
-- Files used: a curated subset of 24 original 16-by-16 PNG tiles under
-  `frontend/public/assets/kenney-tiny-town/`
+- Files included: a curated subset of 24 original 16-by-16 PNG tiles under
+  `frontend/public/assets/kenney-tiny-town/`; 22 are currently referenced by the fallback city
+  artwork, while `tile_0001.png` and `tile_0088.png` remain unused candidates
 - Modifications: presentation-only scaling, filtering, layering, and animation in A-Brain's CSS;
   the source PNG files are unmodified
 - Retrieved: 2026-09-01

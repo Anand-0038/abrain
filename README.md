@@ -281,6 +281,7 @@ its own event history for the world projection.
 
 MIT. See [LICENSE](./LICENSE).
 
-Direct dependency and asset attribution is recorded in
-[THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md). No third-party image, audio, or sprite assets
-are bundled in this local build.
+Direct dependency and visual-asset attribution is recorded in
+[THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md). The compatibility city uses a small CC0 Kenney
+Tiny Town tile subset; A-Brain's continuity mechanics, event choreography, and Pixi effects remain
+project implementation.

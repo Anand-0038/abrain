@@ -1417,6 +1417,13 @@ export default function HomePage() {
                   <strong>{continuity.status.replaceAll("_", " ")}</strong>
                   <p className="agent-response">{continuity.agent_response}</p>
                   <span>{continuity.explanation}</span>
+                  {continuity.search_verdict ? (
+                    <small className="search-verdict">
+                      Sibyl retrieval · {continuity.search_verdict.code.replaceAll("_", " ")} ·{" "}
+                      {continuity.search_verdict.returned} scoped result
+                      {continuity.search_verdict.returned === 1 ? "" : "s"}
+                    </small>
+                  ) : null}
                   <small>
                     {continuity.recalled_memory_ids.length
                       ? `influenced by ${continuity.recalled_memory_ids.join(", ")}`
@@ -1489,14 +1496,28 @@ export default function HomePage() {
                           <strong>SIBYL ON</strong>
                           <span>brain reconnects</span>
                         </div>
-                        <span className="arena-status">continues</span>
+                        <span className="arena-status">
+                          {comparison.memory_lane.decision.influenced_by_memory
+                            ? "continues"
+                            : "needs context"}
+                        </span>
                       </header>
                       <div className="arena-track" aria-label="Sibyl on path">
                         <span className="is-done">brain reconnects</span>
                         <span className="is-done">
                           {comparison.memory_lane.decision.recalled_memory_ids.length} shards arrive
                         </span>
-                        <span className="is-done">useful action</span>
+                        <span
+                          className={
+                            comparison.memory_lane.decision.influenced_by_memory
+                              ? "is-done"
+                              : "is-blocked-step"
+                          }
+                        >
+                          {comparison.memory_lane.decision.influenced_by_memory
+                            ? "memory-shaped action"
+                            : "no memory-shaped action"}
+                        </span>
                       </div>
                       <p>{comparison.memory_lane.decision.agent_response}</p>
                       <div className="arena-proof">
@@ -1553,8 +1574,8 @@ export default function HomePage() {
                     <strong>SAME AGENT · SAME REQUEST · ONE DIFFERENCE: MEMORY</strong>
                     <small>
                       {comparison.diverged
-                        ? "The returned actions diverged because the memory lane had real recalled context."
-                        : "The returned actions did not diverge; inspect the memory query and stored context."}
+                        ? "The actions diverged because the memory lane used recalled context."
+                        : "No memory-caused divergence was proven; refine the request or stored context."}
                     </small>
                   </div>
                 </div>

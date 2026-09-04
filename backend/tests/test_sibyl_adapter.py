@@ -80,6 +80,30 @@ def test_sibyl_search_verdict_explains_empty_recall_without_exposing_other_owner
     adapter.close()
 
 
+def test_recall_outcome_keeps_records_and_verdict_from_one_search(tmp_path, monkeypatch) -> None:
+    adapter = SibylMemoryAdapter(tmp_path / "atomic-recall.db")
+    adapter.write(record("owner-a", "mem-a", "workspace", "dark interface"))
+    client = adapter._client("owner-a")
+    original_search = client.search
+    calls = 0
+
+    def counted_search(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original_search(*args, **kwargs)
+
+    monkeypatch.setattr(adapter, "_client", lambda owner_id: client)
+    monkeypatch.setattr(client, "search", counted_search)
+
+    outcome = adapter.recall_outcome("owner-a", "nova", "dark interface")
+
+    assert calls == 1
+    assert [item.record.memory_id for item in outcome.retrievals] == ["mem-a"]
+    assert outcome.verdict.code == "ok"
+    assert outcome.verdict.returned == 1
+    adapter.close()
+
+
 def test_sibyl_recall_supports_generic_project_context(tmp_path) -> None:
     adapter = SibylMemoryAdapter(tmp_path / "project.db")
     project_memory = record("owner-a", "mem-project", "project", "build A-Brain")

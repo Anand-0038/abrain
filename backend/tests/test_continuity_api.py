@@ -133,6 +133,35 @@ def test_continuity_comparison_runs_real_enabled_and_disabled_lanes(tmp_path) ->
         assert disabled_read.json()["session"]["status"] == "terminated"
 
 
+def test_continuity_comparison_does_not_claim_divergence_without_used_memory(tmp_path) -> None:
+    settings = Settings(
+        ABRAIN_ENV="test",
+        ABRAIN_MEMORY_ENABLED="true",
+        ABRAIN_SIBYL_DB_PATH=str(tmp_path / "memory.db"),
+    )
+    with TestClient(create_app(settings, agent_runner=NonUsingRunner())) as client:
+        npc = client.post("/api/npcs", json={"owner_id": "owner-a", "name": "Nova"}).json()["npc"]
+        session = client.post(
+            "/api/sessions", json={"owner_id": "owner-a", "npc_id": npc["npc_id"]}
+        ).json()["session"]
+
+        comparison = client.post(
+            "/api/continuity/compare",
+            json={
+                "owner_id": "owner-a",
+                "npc_id": npc["npc_id"],
+                "session_id": session["session_id"],
+                "query": "Plan a trip for me",
+            },
+        )
+
+        assert comparison.status_code == 200
+        body = comparison.json()
+        assert body["memory_lane"]["decision"]["recalled_memory_ids"] == []
+        assert body["memory_lane"]["decision"]["influenced_by_memory"] is False
+        assert body["diverged"] is False
+
+
 def test_continuity_comparison_requires_a_clean_session(tmp_path) -> None:
     settings = Settings(
         ABRAIN_ENV="test",

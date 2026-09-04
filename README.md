@@ -60,7 +60,8 @@ Remove Sibyl Memory and A-Brain loses its core function: cross-session continuit
 This is not vector or semantic search. Normal recall uses Sibyl's verified SQLite FTS/search path,
 then applies deterministic owner and NPC scope checks while preserving provider rank, snippet,
 tier, source, query, and relevance metadata. Sibyl Memory 0.8.0 “Lucid” adds a deterministic
-zero-result verdict; A-Brain preserves that provider explanation and performs at most one
+zero-result verdict; A-Brain returns the scoped records and verdict from the same search outcome,
+preserves that provider explanation, and performs at most one
 provider-authorized token-removal retry. It never strips arbitrary user words or turns a
 zero-result into invented memory.
 

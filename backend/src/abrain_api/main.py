@@ -1719,10 +1719,9 @@ def create_app(
             return ContinuityResponse(request=request, **decision.model_dump())
 
         try:
-            memories = adapter.recall_with_metadata(request.owner_id, request.npc_id, request.query)
-            search_verdict = (
-                adapter.search_verdict(request.owner_id, request.query) if not memories else None
-            )
+            recall_outcome = adapter.recall_outcome(request.owner_id, request.npc_id, request.query)
+            memories = recall_outcome.retrievals
+            search_verdict = recall_outcome.verdict
         except MemoryAdapterError as exc:
             emit(
                 "memory.recall_failed",
@@ -1807,10 +1806,9 @@ def create_app(
             },
         )
         try:
-            memories = adapter.recall_with_metadata(request.owner_id, request.npc_id, request.query)
-            search_verdict = (
-                adapter.search_verdict(request.owner_id, request.query) if not memories else None
-            )
+            recall_outcome = adapter.recall_outcome(request.owner_id, request.npc_id, request.query)
+            memories = recall_outcome.retrievals
+            search_verdict = recall_outcome.verdict
         except MemoryAdapterError as exc:
             emit(
                 "memory.recall_failed",
@@ -1903,8 +1901,9 @@ def create_app(
             memory_lane=memory_lane,
             memory_disabled_lane=disabled_lane,
             diverged=(
-                memory_decision.action != disabled_decision.action
-                or memory_decision.status != disabled_decision.status
+                memory_decision.influenced_by_memory
+                and bool(memory_decision.agent_run.used_memory_ids)
+                and memory_decision.action != disabled_decision.action
             ),
         )
 

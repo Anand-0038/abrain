@@ -118,6 +118,16 @@ export type MemoryRetrieval = {
   relevance_reason: string;
 };
 
+export type MemorySearchVerdict = {
+  code: string;
+  tokens: string[];
+  gate: string | null;
+  returned: number;
+  retry_query: string | null;
+  retryable: boolean;
+  explanation: string;
+};
+
 export type AgentRunResult = {
   response: string;
   plan: string[];
@@ -161,6 +171,7 @@ export type ContinuityResult = {
   recalled_memory_ids: string[];
   recalled_memories: MemoryRecord[];
   retrievals: MemoryRetrieval[];
+  search_verdict: MemorySearchVerdict | null;
   agent_run: AgentRunResult;
   explanation: string;
   agent_response: string;

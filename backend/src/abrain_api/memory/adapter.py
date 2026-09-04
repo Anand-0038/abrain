@@ -17,7 +17,12 @@ from typing import Any
 from sibyl_memory_client import MemoryClient, Storage  # type: ignore[import-untyped]
 
 from ..modules.handoff import ScopedHandoff
-from ..modules.memory import MemoryRecord, MemoryRetrieval, MemorySearchVerdict
+from ..modules.memory import (
+    MemoryRecallOutcome,
+    MemoryRecord,
+    MemoryRetrieval,
+    MemorySearchVerdict,
+)
 from ..modules.npc_identity import NpcIdentity
 from ..modules.tasks import AgentTask
 
@@ -254,6 +259,13 @@ class SibylMemoryAdapter:
     def recall_with_metadata(
         self, owner_id: str, npc_id: str, query: str, *, limit: int = 10
     ) -> builtins.list[MemoryRetrieval]:
+        """Return retrievals from one atomic Sibyl recall outcome."""
+
+        return self.recall_outcome(owner_id, npc_id, query, limit=limit).retrievals
+
+    def recall_outcome(
+        self, owner_id: str, npc_id: str, query: str, *, limit: int = 10
+    ) -> MemoryRecallOutcome:
         """Recall through Sibyl search and retain the provider's ranking metadata.
 
         A-Brain's structured records live in Sibyl's WARM ``entity`` tier, so
@@ -263,10 +275,16 @@ class SibylMemoryAdapter:
         """
 
         if limit < 1:
-            return []
+            return MemoryRecallOutcome(
+                verdict=MemorySearchVerdict(
+                    code="limit_zero",
+                    returned=0,
+                    explanation="No records were requested from Sibyl.",
+                )
+            )
         if not query.strip():
             records = self.list(owner_id, npc_id=npc_id)[:limit]
-            return [
+            retrievals = [
                 MemoryRetrieval(
                     record=record,
                     query=query,
@@ -278,6 +296,14 @@ class SibylMemoryAdapter:
                 )
                 for record in records
             ]
+            return MemoryRecallOutcome(
+                retrievals=retrievals,
+                verdict=MemorySearchVerdict(
+                    code="entity_list",
+                    returned=len(retrievals),
+                    explanation="Sibyl listed active owner and NPC brain entities.",
+                ),
+            )
 
         client = self._client(owner_id)
         attempt = 1
@@ -331,7 +357,23 @@ class SibylMemoryAdapter:
             )
             if len(matches) >= limit:
                 break
-        return matches
+        final_verdict = self._search_verdict(hits, search_query)
+        if not matches and final_verdict.code == "ok":
+            final_verdict = final_verdict.model_copy(
+                update={
+                    "code": "no_scoped_match",
+                    "returned": 0,
+                    "retryable": False,
+                    "retry_query": None,
+                    "explanation": (
+                        "Sibyl found no record in this NPC's durable owner-context scope; "
+                        "the agent must ask for context."
+                    ),
+                }
+            )
+        else:
+            final_verdict = final_verdict.model_copy(update={"returned": len(matches)})
+        return MemoryRecallOutcome(retrievals=matches, verdict=final_verdict)
 
     @staticmethod
     def _search_verdict(hits: object, query: str) -> MemorySearchVerdict:

@@ -65,6 +65,13 @@ class MemorySearchVerdict(BaseModel):
     explanation: str = Field(min_length=1)
 
 
+class MemoryRecallOutcome(BaseModel):
+    """One atomic Sibyl retrieval result and the verdict from that same search."""
+
+    retrievals: list[MemoryRetrieval] = Field(default_factory=list)
+    verdict: MemorySearchVerdict
+
+
 class MemoryProvider(Protocol):
     async def write(self, record: MemoryRecord) -> None:
         """Persist a promoted record through the verified Sibyl boundary."""

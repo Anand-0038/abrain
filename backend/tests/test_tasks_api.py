@@ -160,3 +160,45 @@ def test_task_owner_scope_is_enforced(tmp_path) -> None:
             ).status_code
             == 403
         )
+
+
+def test_unfinished_task_is_discovered_and_resumed_after_process_restart(tmp_path) -> None:
+    settings = _settings(tmp_path)
+    with TestClient(create_app(settings)) as first:
+        npc_id, _ = _npc_and_session(first, owner_id="owner-resume")
+        created = first.post(
+            "/api/tasks",
+            json={
+                "owner_id": "owner-resume",
+                "assigned_agent_id": npc_id,
+                "title": "Continue release review",
+                "objective": "Organize the remaining release review steps.",
+            },
+        )
+        assert created.status_code == 201
+        task_id = created.json()["task"]["task_id"]
+        assert created.json()["task"]["status"] == "queued"
+
+    with TestClient(create_app(settings)) as reopened:
+        listed = reopened.get(
+            "/api/tasks",
+            params={"owner_id": "owner-resume", "assigned_agent_id": npc_id},
+        )
+        assert listed.status_code == 200
+        assert [task["task_id"] for task in listed.json()["tasks"]] == [task_id]
+        assert listed.json()["tasks"][0]["status"] == "queued"
+
+        session = reopened.post(
+            "/api/sessions", json={"owner_id": "owner-resume", "npc_id": npc_id}
+        ).json()["session"]
+        resumed = reopened.post(
+            f"/api/tasks/{task_id}/run",
+            json={"owner_id": "owner-resume", "session_id": session["session_id"]},
+        )
+        assert resumed.status_code == 200
+        assert resumed.json()["task"]["task_id"] == task_id
+        assert resumed.json()["task"]["status"] in {"review", "completed"}
+
+        persisted = reopened.app.state.memory_adapter.get_task_state("owner-resume", task_id)
+        assert persisted is not None
+        assert persisted.status == resumed.json()["task"]["status"]

@@ -443,7 +443,16 @@ def create_app(
     async def list_tasks(owner_id: str, assigned_agent_id: str | None = None) -> TaskListResponse:
         if assigned_agent_id is not None:
             resolve_npc(owner_id, assigned_agent_id)
-        return TaskListResponse(tasks=app.state.tasks.list(owner_id, assigned_agent_id))
+        adapter = getattr(app.state, "memory_adapter", None)
+        if adapter is None:
+            return TaskListResponse(tasks=app.state.tasks.list(owner_id, assigned_agent_id))
+        try:
+            tasks = adapter.list_task_states(owner_id, assigned_agent_id)
+            for task in tasks:
+                app.state.tasks.restore(task)
+        except (MemoryAdapterError, TaskRuntimeError) as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        return TaskListResponse(tasks=tasks)
 
     @app.get("/api/tasks/{task_id}", response_model=TaskResponse)
     async def get_task(task_id: str, owner_id: str) -> TaskResponse:

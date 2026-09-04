@@ -12,6 +12,7 @@ import builtins
 import hashlib
 from datetime import UTC
 from pathlib import Path
+from threading import RLock
 from typing import Any
 
 from sibyl_memory_client import MemoryClient, Storage  # type: ignore[import-untyped]
@@ -28,6 +29,7 @@ from ..modules.tasks import AgentTask
 
 _CATEGORY = "abrain.memory"
 _NPC_CATEGORY = "abrain.npc"
+_TASK_INDEX_KEY = "tasks:index"
 
 
 class MemoryAdapterError(RuntimeError):
@@ -45,6 +47,7 @@ class SibylMemoryAdapter:
     def __init__(self, db_path: str | Path):
         self.db_path = Path(db_path).expanduser()
         self._storage = Storage(self.db_path)
+        self._task_index_lock = RLock()
 
     @staticmethod
     def _tenant_id(owner_id: str) -> str:
@@ -153,12 +156,29 @@ class SibylMemoryAdapter:
         client = self._client(task.owner_id)
         body = task.model_dump(mode="json")
         try:
-            client.set_state(f"task:{task.task_id}", body)
-            stored = client.get_state(f"task:{task.task_id}")
+            with self._task_index_lock:
+                client.set_state(f"task:{task.task_id}", body)
+                current_index = client.get_state(_TASK_INDEX_KEY)
+                task_ids = (
+                    list(current_index["body"].get("task_ids", []))
+                    if current_index is not None and isinstance(current_index.get("body"), dict)
+                    else []
+                )
+                if task.task_id not in task_ids:
+                    task_ids.append(task.task_id)
+                client.set_state(_TASK_INDEX_KEY, {"task_ids": task_ids})
+                stored = client.get_state(f"task:{task.task_id}")
+                stored_index = client.get_state(_TASK_INDEX_KEY)
         except Exception as exc:
             raise MemoryAdapterError("Sibyl task HOT state write failed") from exc
         if stored is None:
             raise MemoryAdapterError("Sibyl task HOT state write returned no state")
+        if (
+            stored_index is None
+            or not isinstance(stored_index.get("body"), dict)
+            or task.task_id not in stored_index["body"].get("task_ids", [])
+        ):
+            raise MemoryAdapterError("Sibyl task HOT index verification failed")
         try:
             persisted = AgentTask.model_validate(stored["body"])
         except ValueError as exc:
@@ -182,6 +202,33 @@ class SibylMemoryAdapter:
         except ValueError as exc:
             raise MemoryAdapterError("Sibyl task HOT state was malformed") from exc
         return task if task.owner_id == owner_id else None
+
+    def list_task_states(
+        self, owner_id: str, assigned_agent_id: str | None = None
+    ) -> builtins.list[AgentTask]:
+        """Discover owner-scoped tasks through the Sibyl HOT task index."""
+
+        client = self._client(owner_id)
+        try:
+            stored_index = client.get_state(_TASK_INDEX_KEY)
+        except Exception as exc:
+            raise MemoryAdapterError("Sibyl task HOT index read failed") from exc
+        if stored_index is None:
+            return []
+        body = stored_index.get("body")
+        if not isinstance(body, dict) or not isinstance(body.get("task_ids"), list):
+            raise MemoryAdapterError("Sibyl task HOT index was malformed")
+
+        tasks: builtins.list[AgentTask] = []
+        for task_id in body["task_ids"]:
+            if not isinstance(task_id, str):
+                raise MemoryAdapterError("Sibyl task HOT index contained an invalid task ID")
+            task = self.get_task_state(owner_id, task_id)
+            if task is None:
+                continue
+            if assigned_agent_id is None or task.assigned_agent_id == assigned_agent_id:
+                tasks.append(task)
+        return sorted(tasks, key=lambda task: task.created_at, reverse=True)
 
     def write_handoff_state(self, handoff: ScopedHandoff) -> ScopedHandoff:
         """Persist and verify a delegated context grant in Sibyl HOT state."""

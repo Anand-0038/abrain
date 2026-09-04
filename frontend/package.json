@@ -3,9 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "dev": "next dev",
-    "start": "next start",
-    "build": "next build",
+    "dev": "node init && next dev",
+    "start": "node init && next start",
+    "build": "node init && next build",
     "lint": "eslint .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",

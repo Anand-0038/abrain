@@ -1,6 +1,4 @@
 node_modules/
-.env
-.env.*
 !.env.example
 !frontend/.env.example
 dist/
@@ -18,3 +16,7 @@ __pycache__/
 *.tsbuildinfo
 .DS_Store
 hack/
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat
+config.bat

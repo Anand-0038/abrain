@@ -5,9 +5,9 @@
   "description": "A-Brain persistent agent-continuity world",
   "packageManager": "pnpm@11.21.0",
   "scripts": {
-    "dev:frontend": "corepack pnpm --dir frontend dev",
-    "start:frontend": "corepack pnpm --dir frontend start --hostname 127.0.0.1 --port 3125",
-    "build": "corepack pnpm --dir frontend build",
+    "dev:frontend": "node init && corepack pnpm --dir frontend dev",
+    "start:frontend": "node init && corepack pnpm --dir frontend start --hostname 127.0.0.1 --port 3125",
+    "build": "node init && corepack pnpm --dir frontend build",
     "verify:local": "bash scripts/verify-local.sh",
     "lint": "corepack pnpm --dir frontend lint && corepack pnpm run backend:lint",
     "format:check": "corepack pnpm --dir frontend format:check && corepack pnpm run backend:format:check",
